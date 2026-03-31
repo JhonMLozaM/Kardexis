@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* HSL Color Palette - Kardexis Theme */
+  --bg-color: 220 10% 98%; /* Light modern gray */
+  --surface-color: 0 0% 100%;
+  --text-primary: 222 47% 11%;
+  --text-secondary: 215 16% 47%;
+  
+  --primary: 221 83% 53%; /* Vivid Blue */
+  --primary-hover: 221 83% 43%;
+  --primary-light: 221 83% 90%;
+  
+  --success: 142 71% 45%; /* Emerald */
+  --warning: 38 92% 50%; /* Amber */
+  --danger: 348 83% 47%; /* Rose */
+  
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 24px;
+  
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-short: 0.2s ease-out;
+  
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: 222 47% 11%; /* Dark modern navy */
+    --surface-color: 217 33% 17%;
+    --text-primary: 210 40% 98%;
+    --text-secondary: 215 20% 65%;
+    
+    --primary: 213 94% 68%;
+    --primary-hover: 213 94% 58%;
+    --primary-light: 213 94% 18%;
+
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: hsl(var(--bg-color));
+  color: hsl(var(--text-primary));
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Glassmorphism Classes */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--border-radius-md);
+}
+
+/* Micro Animations */
+.hover-lift {
+  transition: transform var(--transition-short), box-shadow var(--transition-short);
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -10px rgba(0,0,0,0.15);
+}
+
+.anim-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.anim-slide-up {
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Base Typo */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5em;
+  color: hsl(var(--text-primary));
+}
+
+a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: hsl(var(--primary-hover));
+}
+
+button, .btn {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+.btn-primary {
+  background-color: hsl(var(--primary));
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
+  background-color: hsl(var(--primary-hover));
+  transform: translateY(-2px);
+}
+
+/* Layout Utilities */
+.app-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+.grid-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Base Inputs */
+input, select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--glass-border);
+  background-color: var(--glass-bg);
+  border-radius: var(--border-radius-sm);
+  color: hsl(var(--text-primary));
+  font-size: 1rem;
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary-light));
+}
