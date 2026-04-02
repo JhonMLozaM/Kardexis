@@ -15,6 +15,10 @@ async def create_transaction(
     db = Depends(get_db),
     current_user: UserInDB = Depends(get_current_active_user)
 ) -> Any:
+    # Si es una salida (OUT) o venta, nos aseguramos de que el número sea negativo para que reste
+    if transaction.transaction_type == "OUT" and transaction.quantity > 0:
+        transaction.quantity = -transaction.quantity
+
     try:
         product_id = ObjectId(transaction.product_id)
     except:

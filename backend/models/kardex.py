@@ -7,7 +7,7 @@ class KardexTransactionBase(BaseModel):
     transaction_type: str = Field(..., title="IN, OUT, ADJUSTMENT, TRANSFORMATION")
     quantity: float = Field(..., title="Cantidad movida (+ entrada, - salida)")
     date: datetime = Field(default_factory=datetime.utcnow, title="Fecha y Hora de la transacción")
-    user_id: str = Field(..., title="ID del usuario que realizó la transacción")
+    user_id: Optional[str] = Field(None, title="ID del usuario que realizó la transacción")
     notes: Optional[str] = Field(None, title="Notas o justificaciones (Ej. fraccionamiento)")
 
 class KardexTransactionCreate(KardexTransactionBase):

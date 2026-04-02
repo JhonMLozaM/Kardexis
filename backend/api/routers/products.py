@@ -83,3 +83,31 @@ async def delete_product(
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=400, detail="Error eliminando producto")
+
+@router.post("/{product_id}/generate-barcode")
+async def generate_barcode(
+    product_id: str,
+    db = Depends(get_db),
+    current_user: UserInDB = Depends(get_current_active_user)
+) -> Any:
+    # Generar un código único simple: KDX + timestamp
+    import time
+    new_barcode = f"KDX{int(time.time())}"
+    
+    try:
+        obj_id = ObjectId(product_id)
+        # Verificar si ya tiene
+        prod = await db["products"].find_one({"_id": obj_id})
+        if not prod:
+            raise HTTPException(status_code=404, detail="Producto no encontrado")
+            
+        if prod.get("barcode"):
+            return {"barcode": prod["barcode"]} # Ya tiene uno
+            
+        await db["products"].update_one(
+            {"_id": obj_id},
+            {"$set": {"barcode": new_barcode}}
+        )
+        return {"barcode": new_barcode}
+    except Exception:
+        raise HTTPException(status_code=400, detail="Error generando código")

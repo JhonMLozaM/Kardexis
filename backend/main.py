@@ -32,8 +32,21 @@ app.add_middleware(
 async def root():
     return {"message": "Bienvenido a Kardexis API"}
 
+from api.routers import users, products, kardex, sales, reports, attendance, customers
+
+# ... (omitted)
+
+from fastapi.staticfiles import StaticFiles
+
+# Mount Static Files for invoices
+app.mount("/static/facturas", StaticFiles(directory="facturas_ventas"), name="facturas")
+
 # Mount Routers
 app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["Usuarios"])
 app.include_router(products.router, prefix=f"{settings.API_V1_STR}/products", tags=["Productos"])
 app.include_router(kardex.router, prefix=f"{settings.API_V1_STR}/kardex", tags=["Kardex"])
+app.include_router(sales.router, prefix=f"{settings.API_V1_STR}/sales", tags=["Facturación / Ventas"])
+app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["Reportes y Estadísticas"])
+app.include_router(attendance.router, prefix=f"{settings.API_V1_STR}/attendance", tags=["Asistencia y Turnos"])
+app.include_router(customers.router, prefix=f"{settings.API_V1_STR}/customers", tags=["Clientes CRM"])
 
