@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Smile, ArrowLeft, Save, Lock, Calendar, ShieldCheck, Camera, Loader2, Palette } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Smile, ArrowLeft, Save, Lock, Calendar, ShieldCheck, Camera, Loader2, Palette, Building2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { api } from '../services/api';
 
@@ -132,6 +132,23 @@ export default function Profile() {
           <div className="glass" style={{ padding: '1rem', textAlign: 'center', color: 'hsl(var(--text-secondary))', fontSize: '0.8rem' }}>
             ID Sistema: {authUser?.id}
           </div>
+
+          {authUser?.role === 'ADMIN' && (
+            <div className="glass anim-fade-in" style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed hsl(var(--primary) / 0.5)', background: 'hsl(var(--primary) / 0.02)' }}>
+               <Building2 size={32} style={{ marginBottom: '1rem', color: 'hsl(var(--primary))' }} />
+               <h4 style={{ margin: '0 0 0.5rem' }}>Gestión de Empresa</h4>
+               <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-secondary))', marginBottom: '1.5rem' }}>
+                  Configura los datos legales, RUC y parámetros de facturación para tu negocio.
+               </p>
+               <button 
+                  onClick={() => navigate('/empresa')}
+                  className="btn glass hover-lift" 
+                  style={{ width: '100%', color: 'hsl(var(--primary))', fontWeight: 'bold' }}
+               >
+                  Configurar Negocio
+               </button>
+            </div>
+          )}
         </aside>
 
         {/* Lado Derecho: Formulario de Edición */}

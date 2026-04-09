@@ -58,7 +58,7 @@ class SRIInvoiceHelper:
         dv = self.generar_digito_verificador(clave_48)
         return clave_48 + str(dv)
 
-    def generar_xml(self, invoice_data, clave_acceso):
+    def generar_xml(self, invoice_data, clave_acceso, business_data):
         # Estructura básica según Ficha Técnica SRI Factura v1.1.0
         root = ET.Element("factura", id="comprobante", version="1.1.0")
         
@@ -66,21 +66,21 @@ class SRIInvoiceHelper:
         info_trib = ET.SubElement(root, "infoTributaria")
         ET.SubElement(info_trib, "ambiente").text = self.ambiente
         ET.SubElement(info_trib, "tipoEmision").text = self.tipo_emision
-        ET.SubElement(info_trib, "razonSocial").text = self.razon_social
-        ET.SubElement(info_trib, "nombreComercial").text = self.nombre_comercial
-        ET.SubElement(info_trib, "ruc").text = self.ruc_emisor
+        ET.SubElement(info_trib, "razonSocial").text = business_data.get("legal_name", self.razon_social)
+        ET.SubElement(info_trib, "nombreComercial").text = business_data.get("name", self.nombre_comercial)
+        ET.SubElement(info_trib, "ruc").text = business_data.get("ruc", self.ruc_emisor)
         ET.SubElement(info_trib, "claveAcceso").text = clave_acceso
         ET.SubElement(info_trib, "codDoc").text = "01"
-        ET.SubElement(info_trib, "estab").text = self.establecimiento
-        ET.SubElement(info_trib, "ptoEmi").text = self.punto_emision
+        ET.SubElement(info_trib, "estab").text = str(business_data.get("establishment", "001")).zfill(3)
+        ET.SubElement(info_trib, "ptoEmi").text = str(business_data.get("emission_point", "001")).zfill(3)
         ET.SubElement(info_trib, "secuencial").text = clave_acceso[30:39]
-        ET.SubElement(info_trib, "dirMatriz").text = self.dir_matriz
+        ET.SubElement(info_trib, "dirMatriz").text = business_data.get("address", self.dir_matriz)
 
         # Info Factura
         info_fact = ET.SubElement(root, "infoFactura")
         ET.SubElement(info_fact, "fechaEmision").text = datetime.now().strftime("%d/%m/%Y")
-        ET.SubElement(info_fact, "dirEstablecimiento").text = self.dir_matriz
-        ET.SubElement(info_fact, "obligadoContabilidad").text = self.obligado_contabilidad
+        ET.SubElement(info_fact, "dirEstablecimiento").text = business_data.get("address", self.dir_matriz)
+        ET.SubElement(info_fact, "obligadoContabilidad").text = "SI" if business_data.get("is_required_to_keep_accounting") else "NO"
         ET.SubElement(info_fact, "tipoIdentificacionComprador").text = invoice_data["client_id_type"] # 05: Cedula, 04: RUC
         ET.SubElement(info_fact, "razonSocialComprador").text = invoice_data["client_name"]
         ET.SubElement(info_fact, "identificacionComprador").text = invoice_data["client_id"]
@@ -120,7 +120,7 @@ class SRIInvoiceHelper:
 
         return ET.tostring(root, encoding="unicode")
 
-    def generar_pdf(self, invoice_data, clave_acceso, output_path):
+    def generar_pdf(self, invoice_data, clave_acceso, output_path, business_data):
         doc = SimpleDocTemplate(output_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
         elements = []
         styles = getSampleStyleSheet()
@@ -133,27 +133,39 @@ class SRIInvoiceHelper:
         style_table_header = ParagraphStyle('THead', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold', alignment=1)
 
         # ---------------------------------------------------------
-        # CABECERA: Lado Izquierdo (Emisor) | Lado Derecho (RUC/Autorización)
+        # CABECERA: Lado Izquierdo (Emisor/Logo) | Lado Derecho (RUC/Autorización)
         # ---------------------------------------------------------
         
         # Lado Izquierdo: Datos Emisor
+        logo_path = None
+        if business_data.get("logo_url"):
+            # Mapear URL estática a ruta física: /static/logos/logo.png -> static/logos/logo.png
+            relative_path = business_data["logo_url"].lstrip("/")
+            if os.path.exists(relative_path):
+                logo_path = relative_path
+        
+        logo_img = None
+        if logo_path:
+            logo_img = Image(logo_path, width=120, height=120, kind='proportional')
+            logo_img.hAlign = 'LEFT'
+
         emisor_info = [
-            [Paragraph(f"<font size=14 color='#E11D48'><b>{self.nombre_comercial}</b></font>", style_norm)],
-            [Paragraph(f"<b>{self.razon_social}</b>", style_norm)],
-            [Spacer(1, 5)],
-            [Paragraph(f"<b>Dirección Matriz:</b> {self.dir_matriz}", style_small)],
-            [Paragraph(f"<b>Dirección Sucursal:</b> {self.dir_matriz}", style_small)],
-            [Paragraph(f"<b>Contribuyente Especial:</b> NO", style_small)],
-            [Paragraph(f"<b>OBLIGADO A LLEVAR CONTABILIDAD:</b> {self.obligado_contabilidad}", style_small)]
+            [logo_img if logo_img else Paragraph(f"<font size=14 color='#E11D48'><b>{business_data.get('name', 'KARDEXIS')}</b></font>", style_norm)],
+            [Paragraph(f"<b>{business_data.get('legal_name', 'KARDEXIS S.A.')}</b>", style_norm)],
+            [Spacer(1, 4)],
+            [Paragraph(f"<b>Dirección Matriz:</b> {business_data.get('address', 'Quito')}", style_small)],
+            [Paragraph(f"<b>Dirección Sucursal:</b> {business_data.get('address', 'Quito')}", style_small)],
+            [Paragraph(f"<b>Contribuyente Especial:</b> {business_data.get('special_taxpayer_code', 'NO')}", style_small)],
+            [Paragraph(f"<b>OBLIGADO A LLEVAR CONTABILIDAD:</b> {'SI' if business_data.get('is_required_to_keep_accounting') else 'NO'}", style_small)]
         ]
         emisor_table = Table(emisor_info, colWidths=[240])
         emisor_table.setStyle(TableStyle([('BOTTOMPADDING', (0,0), (-1,-1), 0)]))
 
         # Lado Derecho: RUC y Clave de Acceso
         ruc_info = [
-            [Paragraph(f"<b>R.U.C.: {self.ruc_emisor}</b>", style_title)],
+            [Paragraph(f"<b>R.U.C.: {business_data.get('ruc', self.ruc_emisor)}</b>", style_title)],
             [Paragraph("<b>FACTURA</b>", style_title)],
-            [Paragraph(f"No. {self.establecimiento}-{self.punto_emision}-{clave_acceso[30:39]}", style_norm)],
+            [Paragraph(f"No. {str(business_data.get('establishment', '001')).zfill(3)}-{str(business_data.get('emission_point', '001')).zfill(3)}-{clave_acceso[30:39]}", style_norm)],
             [Paragraph(f"<b>NÚMERO DE AUTORIZACIÓN:</b><br/>{clave_acceso}", style_small)],
             [Paragraph(f"<b>FECHA Y HORA DE AUTORIZACIÓN:</b><br/>{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", style_small)],
             [Paragraph(f"<b>AMBIENTE:</b> {'PRUEBAS' if self.ambiente == '1' else 'PRODUCCIÓN'}", style_small)],
@@ -229,8 +241,9 @@ class SRIInvoiceHelper:
         # Info Adicional
         info_adic_data = [
             [Paragraph("<b>Información Adicional</b>", style_bold)],
-            [Paragraph("<b>Dirección:</b> Quito, Ecuador", style_small)],
-            [Paragraph("<b>Email:</b> contacto@kardexis.com", style_small)],
+            [Paragraph(f"<b>Dirección:</b> {business_data.get('address', 'Ecuador')}", style_small)],
+            [Paragraph(f"<b>Email:</b> {business_data.get('email', 'contacto@kardexis.com')}", style_small)],
+            [Paragraph(f"<b>Teléfono:</b> {business_data.get('phone', '--')}", style_small)],
             [Paragraph("<b>Forma de Pago:</b> SIN UTILIZACIÓN DEL SISTEMA FINANCIERO", style_small)]
         ]
         info_adic_table = Table(info_adic_data, colWidths=[280])
@@ -262,7 +275,7 @@ class SRIInvoiceHelper:
 
         doc.build(elements)
 
-    def guardar_factura(self, invoice_data):
+    def guardar_factura(self, invoice_data, business_data):
         # Crear la carpeta si no existe
         if not os.path.exists("facturas_ventas"):
             os.makedirs("facturas_ventas")
@@ -271,14 +284,14 @@ class SRIInvoiceHelper:
         secuencial = int(datetime.timestamp(datetime.now())) % 100000000 
         clave = self.generar_clave_acceso(datetime.now(), secuencial)
         
-        xml_content = self.generar_xml(invoice_data, clave)
+        xml_content = self.generar_xml(invoice_data, clave, business_data)
         pdf_name = f"facturas_ventas/factura_{clave}.pdf"
         xml_name = f"facturas_ventas/factura_{clave}.xml"
         
         with open(xml_name, "w", encoding="utf-8") as f:
             f.write(xml_content)
             
-        self.generar_pdf(invoice_data, clave, pdf_name)
+        self.generar_pdf(invoice_data, clave, pdf_name, business_data)
         
         return {
             "clave_acceso": clave,

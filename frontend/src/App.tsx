@@ -9,6 +9,7 @@ import Reports from './pages/Reports';
 import Staff from './pages/Staff';
 import Profile from './pages/Profile';
 import Customers from './pages/Customers';
+import BusinessSettings from './pages/BusinessSettings';
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const token = useAuthStore((state) => state.token);
@@ -74,6 +75,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Customers />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/empresa" 
+          element={
+            <ProtectedRoute>
+              <BusinessSettings />
             </ProtectedRoute>
           } 
         />

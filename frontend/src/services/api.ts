@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore';
 // URL Base dinámica: Reconocerá si entraste a localhost (tu PC) 
 // o si entraste desde la IP de tu red WiFi (tu Móvil/PC secundaria)
 export const api = axios.create({
-  baseURL: `http://${window.location.hostname}:8000/api/v1`,
+  baseURL: `/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },

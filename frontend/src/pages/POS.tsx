@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ShoppingCart, Plus, Minus, X, CreditCard, ArrowLeft, Loader2, ScanLine, RotateCcw, Search } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, CreditCard, ArrowLeft, Loader2, ScanLine, RotateCcw, Search, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import ScannerModal from '../components/ScannerModal';
 
 interface CartItem {
   product: any;
@@ -21,6 +22,7 @@ export default function POS() {
   const [errorMsg, setErrorMsg] = useState('');
   const [lastInvoice, setLastInvoice] = useState<{ pdf: string, xml: string } | null>(null);
   const [cashReceived, setCashReceived] = useState<string>('');
+  const [showScanner, setShowScanner] = useState(false);
 
   // Client State
   const [clientInfo, setClientInfo] = useState({
@@ -182,15 +184,13 @@ export default function POS() {
 
       const resp = await api.post('/sales/', payload);
       
-      const serverUrl = `http://${window.location.hostname}:8000`;
-      
       // Ajustamos la ruta para que coincida con el punto de montaje estático del servidor
       const pdfFile = resp.data.pdf_path.split('/').pop();
       const xmlFile = resp.data.xml_path.split('/').pop();
 
       setLastInvoice({
-        pdf: `${serverUrl}/static/facturas/${pdfFile}`,
-        xml: `${serverUrl}/static/facturas/${xmlFile}`
+        pdf: `/static/facturas/${pdfFile}`,
+        xml: `/static/facturas/${xmlFile}`
       });
 
       setSuccessMsg('¡Venta y Factura generadas con éxito!');
@@ -237,18 +237,57 @@ export default function POS() {
         {/* Panel Izquierdo: Catálogo y Escáner */}
         <section className="glass catalog-panel" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem', overflow: 'hidden' }}>
           
-          <form onSubmit={handleBarcodeSubmit} style={{ marginBottom: '1.5rem', position: 'relative' }}>
-            <ScanLine style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--primary))' }} />
-            <input 
-              ref={barcodeRef}
-              type="text" 
-              placeholder="Escanea el código de barras aquí o busca por nombre..." 
-              value={barcodeInput}
-              onChange={e => setBarcodeInput(e.target.value)}
-              style={{ width: '100%', padding: '1rem 1rem 1rem 3.5rem', fontSize: '1.25rem', border: '2px solid hsl(var(--primary-light))' }}
-              autoFocus
-            />
+          <form onSubmit={handleBarcodeSubmit} style={{ marginBottom: '1.5rem', position: 'relative', display: 'flex', gap: '0.5rem' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <ScanLine style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--primary))' }} />
+              <input 
+                ref={barcodeRef}
+                type="text" 
+                placeholder="Escanea el código de barras aquí o busca por nombre..." 
+                value={barcodeInput}
+                onChange={e => setBarcodeInput(e.target.value)}
+                style={{ width: '100%', padding: '1rem 1rem 1rem 3.5rem', fontSize: '1.25rem', border: '2px solid hsl(var(--primary-light))' }}
+                autoFocus
+              />
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setShowScanner(true)}
+              className="btn hover-lift"
+              style={{ 
+                padding: '0.75rem 1.25rem', 
+                background: 'hsl(var(--primary))', 
+                color: 'white', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                borderRadius: 'var(--border-radius-md)',
+                whiteSpace: 'nowrap'
+              }}
+              title="Escanear con la cámara"
+            >
+              <Camera size={22} />
+              <span className="hide-on-mobile">Cámara</span>
+            </button>
           </form>
+
+          <ScannerModal
+            isOpen={showScanner}
+            onClose={() => setShowScanner(false)}
+            title="Escanear Producto"
+            onScan={(code) => {
+              const matchedProduct = products.find(p => p.barcode === code);
+              if (matchedProduct) {
+                addToCart(matchedProduct, 1);
+                setSuccessMsg(`✅ ${matchedProduct.name} añadido al carrito`);
+                setTimeout(() => setSuccessMsg(''), 2500);
+              } else {
+                setBarcodeInput(code);
+                setErrorMsg(`Código "${code}" no coincide con ningún producto registrado`);
+                setTimeout(() => setErrorMsg(''), 4000);
+              }
+            }}
+          />
 
           {loading ? (
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -287,7 +326,7 @@ export default function POS() {
         </section>
 
         {/* Panel Derecho: Ticket de Caja */}
-        <section className="glass" style={{ flex: '0 0 380px', display: 'flex', flexDirection: 'column', padding: '1.5rem', position: 'relative' }}>
+        <section className="glass" style={{ flex: '0 0 380px', display: 'flex', flexDirection: 'column', padding: '1.5rem', position: 'relative', overflowY: 'auto' }}>
           <h2 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
             A Pagar <span>{cart.reduce((a, b) => a + b.quantity, 0)} items</span>
           </h2>
@@ -341,7 +380,7 @@ export default function POS() {
             </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem' }}>
+          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1rem', minHeight: '200px', border: '1px dashed var(--glass-border)', borderRadius: 'var(--border-radius-sm)', padding: '0.5rem' }}>
             {cart.length === 0 ? (
                <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'hsl(var(--text-secondary))', flexDirection: 'column', gap: '1rem' }}>
                    <ShoppingCart size={48} opacity={0.2} />

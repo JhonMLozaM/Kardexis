@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Package, Plus, X, Search, Filter, Loader2, ArrowLeft, Beaker, CheckCircle, Tag, Printer } from 'lucide-react';
+import { Package, Plus, X, Search, Filter, Loader2, ArrowLeft, Beaker, CheckCircle, Tag, Printer, Camera } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import ScannerModal from '../components/ScannerModal';
 
 export default function Products() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export default function Products() {
   const [entryError, setEntryError] = useState('');
   const [entrySuccess, setEntrySuccess] = useState('');
   const [entryData, setEntryData] = useState({ quantity: '', notes: '' });
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   // Form State
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -415,8 +417,36 @@ export default function Products() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'hsl(var(--primary))' }}>Código de Barras (Escáner)</label>
-                <input ref={barcodeInputRef} name="barcode" value={formData.barcode} onChange={handleInputChange} onKeyDown={handleKeyDown} type="text" placeholder="Apunta el láser aquí" />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input ref={barcodeInputRef} name="barcode" value={formData.barcode} onChange={handleInputChange} onKeyDown={handleKeyDown} type="text" placeholder="Apunta el láser aquí" style={{ flex: 1 }} />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowBarcodeScanner(true)}
+                    className="btn hover-lift"
+                    style={{ 
+                      padding: '0.5rem 0.75rem', 
+                      background: 'hsl(var(--primary))', 
+                      color: 'white', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.25rem',
+                      borderRadius: 'var(--border-radius-sm)'
+                    }}
+                    title="Escanear con la cámara"
+                  >
+                    <Camera size={18} />
+                  </button>
+                </div>
               </div>
+
+              <ScannerModal
+                isOpen={showBarcodeScanner}
+                onClose={() => setShowBarcodeScanner(false)}
+                title="Escanear Código de Barras"
+                onScan={(code) => {
+                  setFormData(prev => ({ ...prev, barcode: code }));
+                }}
+              />
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Unidad de Medida</label>

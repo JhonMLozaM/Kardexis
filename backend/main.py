@@ -3,6 +3,13 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from database import connect_to_mongo, close_mongo_connection
 from config import settings
+import os
+
+# Asegurar directorios antes de montar
+if not os.path.exists("static/logos"):
+    os.makedirs("static/logos", exist_ok=True)
+if not os.path.exists("facturas_ventas"):
+    os.makedirs("facturas_ventas", exist_ok=True)
 
 from api.routers import users, products, kardex
 
@@ -32,7 +39,7 @@ app.add_middleware(
 async def root():
     return {"message": "Bienvenido a Kardexis API"}
 
-from api.routers import users, products, kardex, sales, reports, attendance, customers
+from api.routers import users, products, kardex, sales, reports, attendance, customers, business
 
 # ... (omitted)
 
@@ -40,6 +47,7 @@ from fastapi.staticfiles import StaticFiles
 
 # Mount Static Files for invoices
 app.mount("/static/facturas", StaticFiles(directory="facturas_ventas"), name="facturas")
+app.mount("/static/logos", StaticFiles(directory="static/logos"), name="logos")
 
 # Mount Routers
 app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["Usuarios"])
@@ -49,4 +57,5 @@ app.include_router(sales.router, prefix=f"{settings.API_V1_STR}/sales", tags=["F
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["Reportes y Estadísticas"])
 app.include_router(attendance.router, prefix=f"{settings.API_V1_STR}/attendance", tags=["Asistencia y Turnos"])
 app.include_router(customers.router, prefix=f"{settings.API_V1_STR}/customers", tags=["Clientes CRM"])
+app.include_router(business.router, prefix=f"{settings.API_V1_STR}/business", tags=["Configuración de Empresa"])
 

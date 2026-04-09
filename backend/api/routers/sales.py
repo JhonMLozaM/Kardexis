@@ -66,7 +66,25 @@ async def create_sale(
             "items": [item.model_dump() for item in sale.items]
         }
         
-        doc_info = sri.guardar_factura(invoice_data)
+        # Obtener datos de la empresa (Business) configurada
+        # Primero busca por el usuario actual, luego busca cualquier empresa registrada
+        business_data = await db["business"].find_one({"owner_id": str(current_user.id)})
+        if not business_data:
+            # Si el empleado no es el dueño, buscar la empresa del sistema
+            business_data = await db["business"].find_one({})
+        if not business_data:
+            # Si no existe ninguna empresa, usamos datos por defecto
+            business_data = {
+                 "name": "KARDEXIS ERP",
+                 "legal_name": "KARDEXIS S.A.",
+                 "ruc": "1790085854001",
+                 "address": "Matriz Quito",
+                 "establishment": "001",
+                 "emission_point": "001",
+                 "is_required_to_keep_accounting": False
+             }
+
+        doc_info = sri.guardar_factura(invoice_data, business_data)
         
         # Actualizar venta con rutas de archivos
         await db["sales"].update_one(
