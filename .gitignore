@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# MongoDB
+dump/
+
+# Node (frontend)
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Mobile
+mobile/node_modules/
+mobile/android/
+mobile/ios/
+mobile/.expo/
+
+# Capacitor (Android)
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/build/
+
+# Generated files
+facturas_ventas/
+static/logos/

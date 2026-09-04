@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, User, Mail, Phone, ArrowLeft, Loader2, Save, ShoppingBag, FileText, Calendar, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Search, Plus, Edit2, Trash2, User, Mail, Phone, Loader2, Save, ShoppingBag, Calendar, X, MessageSquare, Clock } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function Customers() {
-  const navigate = useNavigate();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -27,21 +26,78 @@ export default function Customers() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Notes State
+  const [customerNotes, setCustomerNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [newNoteType, setNewNoteType] = useState('general');
+  const [savingNote, setSavingNote] = useState(false);
+  const [historyTab, setHistoryTab] = useState<'sales' | 'notes'>('sales');
+
+  // Toast State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const toastTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimeout.current) clearTimeout(toastTimeout.current);
+    setToast({ message, type });
+    toastTimeout.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchCustomers();
-  }, [searchTerm]);
+  }, [debouncedSearch]);
 
   const fetchHistory = async (customer: any) => {
     try {
       setSelectedCustomer(customer);
       setHistoryModal(true);
       setHistoryLoading(true);
+      setHistoryTab('sales');
       const resp = await api.get(`/sales/?client_id=${customer.dni_ruc}`);
       setSalesHistory(resp.data);
+      // Cargar notas
+      const notesResp = await api.get(`/customers/${customer.dni_ruc}/notes`);
+      setCustomerNotes(notesResp.data.notes || []);
     } catch (err) {
       console.error(err);
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !selectedCustomer) return;
+    setSavingNote(true);
+    try {
+      const resp = await api.post(`/customers/${selectedCustomer.dni_ruc}/notes`, {
+        note: newNote,
+        note_type: newNoteType,
+      });
+      setCustomerNotes([resp.data, ...customerNotes]);
+      setNewNote('');
+      setNewNoteType('general');
+    } catch (err) {
+      showToast('Error al guardar nota', 'error');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedCustomer) return;
+    try {
+      await api.delete(`/customers/${selectedCustomer.dni_ruc}/notes/${noteId}`);
+      setCustomerNotes(customerNotes.filter(n => n.id !== noteId));
+    } catch (err) {
+      showToast('Error al eliminar nota', 'error');
     }
   };
 
@@ -81,14 +137,15 @@ export default function Customers() {
     e.preventDefault();
     try {
       if (editingCustomer) {
-        await api.put(`/customers/${editingCustomer._id}`, formData);
+        await api.put(`/customers/${editingCustomer.id}`, formData);
       } else {
         await api.post('/customers/', formData);
       }
       setShowModal(false);
       fetchCustomers();
+      showToast(editingCustomer ? 'Cliente actualizado' : 'Cliente creado');
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Error al guardar el cliente");
+      showToast(err.response?.data?.detail || "Error al guardar el cliente", 'error');
     }
   };
 
@@ -111,29 +168,36 @@ export default function Customers() {
     try {
       await api.delete(`/customers/${id}`);
       fetchCustomers();
-    } catch (err) {
-      alert("Error al eliminar");
+      showToast('Cliente eliminado');
+    } catch (err: any) {
+      showToast(err.response?.data?.detail || "Error al eliminar", 'error');
     }
   };
 
   return (
-    <div className="app-container anim-fade-in" style={{ padding: '2rem' }}>
-      <header className="glass header-responsive" style={{ padding: '0.75rem 1.25rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <User size={24} color="hsl(var(--primary))" />
-          <h1 style={{ margin: 0, fontSize: '1.25rem', whiteSpace: 'nowrap' }}>Gestión de Clientes (CRM)</h1>
+    <div className="anim-fade-in">
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '1rem', right: '1rem', zIndex: 9999,
+          padding: '0.75rem 1.25rem', borderRadius: '8px',
+          background: toast.type === 'success' ? 'hsl(var(--success))' : 'hsl(var(--danger))',
+          color: 'white', fontSize: '0.85rem', fontWeight: 500,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          {toast.message}
         </div>
+      )}
 
-        <button onClick={() => navigate('/')} className="btn glass hover-lift" style={{ color: 'hsl(var(--primary))', padding: '0.4rem 0.8rem', fontSize: '0.9rem', border: '1px solid hsl(var(--primary) / 0.1)' }}>
-           <ArrowLeft size={16} /> <span>Menú</span>
-        </button>
-        
-        <div style={{ flexGrow: 1 }} className="hide-mobile"></div>
-
-        <button onClick={() => { setEditingCustomer(null); setFormData({ dni_ruc: '', name: '', id_type: '05', email: '', phone: '', address: '', city: '' }); setShowModal(true); }} className="btn btn-primary hover-lift" style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <User size={24} color="hsl(var(--primary))" /> CRM de Clientes
+        </h1>
+        <button onClick={() => { setEditingCustomer(null); setFormData({ dni_ruc: '', name: '', id_type: '05', email: '', phone: '', address: '', city: '' }); setShowModal(true); }} className="btn btn-primary hover-lift" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>
           <Plus size={18} /> Nuevo Cliente
         </button>
-      </header>
+      </div>
 
       <section style={{ marginBottom: '1.5rem' }}>
         <div style={{ position: 'relative', maxWidth: '100%' }}>
@@ -164,7 +228,7 @@ export default function Customers() {
             </thead>
             <tbody>
               {customers.map(c => (
-                <tr key={c._id} className="hover-row" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                <tr key={c.id} className="hover-row" style={{ borderBottom: '1px solid var(--glass-border)' }}>
                   <td style={{ padding: '1.25rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '1rem' }}>{c.dni_ruc}</div>
                     <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{c.id_type === '05' ? 'Cédula' : 'RUC'}</div>
@@ -181,7 +245,7 @@ export default function Customers() {
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                       <button onClick={() => fetchHistory(c)} className="btn glass hover-lift" title="Historial compras" style={{ padding: '0.5rem', color: 'hsl(var(--success))' }}><ShoppingBag size={18}/></button>
                       <button onClick={() => handleEdit(c)} className="btn glass hover-lift" style={{ padding: '0.5rem', color: 'hsl(var(--primary))' }}><Edit2 size={18}/></button>
-                      <button onClick={() => handleDelete(c._id)} className="btn glass hover-lift" style={{ padding: '0.5rem', color: 'hsl(var(--danger))' }}><Trash2 size={18}/></button>
+                      <button onClick={() => handleDelete(c.id)} className="btn glass hover-lift" style={{ padding: '0.5rem', color: 'hsl(var(--danger))' }}><Trash2 size={18}/></button>
                     </div>
                   </td>
                 </tr>
@@ -265,53 +329,121 @@ export default function Customers() {
       {historyModal && (
         <div className="modal-overlay">
           <div className="modal-content glass anim-scale-up" style={{ maxWidth: '800px', width: '90%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div>
-                <h2 style={{ margin: 0 }}>Historial de Compras</h2>
-                <p style={{ color: 'hsl(var(--text-secondary))', margin: 0 }}>{selectedCustomer?.name} ({selectedCustomer?.dni_ruc})</p>
+                <h2 style={{ margin: 0 }}>{selectedCustomer?.name}</h2>
+                <p style={{ color: 'hsl(var(--text-secondary))', margin: 0, fontSize: '0.85rem' }}>RUC/CI: {selectedCustomer?.dni_ruc}</p>
               </div>
               <button onClick={() => setHistoryModal(false)} className="btn glass"><X size={20}/></button>
             </div>
 
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '2px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
+              <button
+                onClick={() => setHistoryTab('sales')}
+                style={{
+                  padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                  background: historyTab === 'sales' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                  color: historyTab === 'sales' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+                }}
+              >
+                <ShoppingBag size={14} style={{ verticalAlign: 'middle', marginRight: '0.3rem' }} /> Compras ({salesHistory.length})
+              </button>
+              <button
+                onClick={() => setHistoryTab('notes')}
+                style={{
+                  padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                  background: historyTab === 'notes' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                  color: historyTab === 'notes' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+                }}
+              >
+                <MessageSquare size={14} style={{ verticalAlign: 'middle', marginRight: '0.3rem' }} /> Notas ({customerNotes.length})
+              </button>
+            </div>
+
             {historyLoading ? (
                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}><Loader2 className="animate-spin" size={32}/></div>
-            ) : (
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '60vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
+            ) : historyTab === 'sales' ? (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '50vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
                  {salesHistory.length === 0 ? (
                    <div style={{ textAlign: 'center', padding: '3rem', opacity: 0.5 }}>No se registran compras previas.</div>
                  ) : (
-                   salesHistory.map(sale => (
-                     <div key={sale._id} className="glass" style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'hsl(var(--primary) / 0.03)' }}>
-                        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                           <div style={{ background: 'hsl(var(--primary) / 0.1)', padding: '0.75rem', borderRadius: 'var(--border-radius-md)', color: 'hsl(var(--primary))' }}>
-                              <Calendar size={24} />
+                    salesHistory.map(sale => (
+                      <div key={sale.id} className="glass" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'hsl(var(--primary) / 0.03)' }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                           <div style={{ background: 'hsl(var(--primary) / 0.1)', padding: '0.5rem', borderRadius: '6px', color: 'hsl(var(--primary))' }}>
+                              <Calendar size={20} />
                            </div>
                            <div>
-                              <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{new Date(sale.date).toLocaleDateString()}</div>
-                              <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{new Date(sale.date).toLocaleTimeString()}</div>
+                             <div style={{ fontWeight: 700 }}>{new Date(sale.date).toLocaleDateString()}</div>
+                             <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>{new Date(sale.date).toLocaleTimeString()}</div>
                            </div>
                         </div>
-                        
-                        <div style={{ textAlign: 'center' }}>
-                           <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>Total Pagado</div>
-                           <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'hsl(var(--primary))' }}>${sale.total.toFixed(2)}</div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ textAlign: 'right' }}>
+                           <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'hsl(var(--primary))' }}>${sale.total.toFixed(2)}</div>
                            {sale.pdf_path && (
-                             <a href={`http://${window.location.hostname}:8000/${sale.pdf_path}`} target="_blank" rel="noreferrer" className="btn glass" style={{ color: 'hsl(var(--danger))' }}>
-                               <FileText size={18}/> PDF
+                             <a href={`${api.defaults.baseURL?.replace('/api/v1', '')}${sale.pdf_path}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'hsl(var(--primary))' }}>
+                               Ver PDF
                              </a>
                            )}
-                           <button className="btn glass" style={{ fontSize: '0.8rem' }} onClick={() => alert("Función de ver detalles próximamente")}>Ver Recibo</button>
                         </div>
-                     </div>
-                   ))
+                      </div>
+                    ))
+                 )}
+               </div>
+            ) : (
+               /* Notes Tab */
+               <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
+                 {/* Add Note */}
+                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                   <select value={newNoteType} onChange={e => setNewNoteType(e.target.value)} style={{ padding: '0.4rem', fontSize: '0.8rem', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
+                     <option value="general">General</option>
+                     <option value="follow_up">Seguimiento</option>
+                     <option value="sale">Venta</option>
+                     <option value="complaint">Queja</option>
+                   </select>
+                   <input
+                     type="text"
+                     placeholder="Escribe una nota..."
+                     value={newNote}
+                     onChange={e => setNewNote(e.target.value)}
+                     onKeyDown={e => e.key === 'Enter' && handleAddNote()}
+                     style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }}
+                   />
+                   <button onClick={handleAddNote} className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} disabled={savingNote || !newNote.trim()}>
+                     {savingNote ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
+                   </button>
+                 </div>
+
+                 {/* Notes List */}
+                 {customerNotes.length === 0 ? (
+                   <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5, fontSize: '0.85rem' }}>Sin notas registradas</div>
+                 ) : (
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                     {customerNotes.map(note => (
+                       <div key={note.id} style={{ padding: '0.75rem', borderRadius: '8px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', display: 'flex', gap: '0.75rem' }}>
+                         <div style={{ flex: 1 }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                             <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: note.note_type === 'follow_up' ? 'hsl(var(--warning) / 0.1)' : note.note_type === 'complaint' ? 'hsl(var(--danger) / 0.1)' : 'hsl(var(--primary) / 0.1)', color: note.note_type === 'follow_up' ? 'hsl(var(--warning))' : note.note_type === 'complaint' ? 'hsl(var(--danger))' : 'hsl(var(--primary))' }}>
+                               {note.note_type === 'follow_up' ? 'Seguimiento' : note.note_type === 'complaint' ? 'Queja' : note.note_type === 'sale' ? 'Venta' : 'General'}
+                             </span>
+                             <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-secondary))', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                               <Clock size={10} /> {new Date(note.created_at).toLocaleString()}
+                             </span>
+                           </div>
+                           <div style={{ fontSize: '0.85rem' }}>{note.note}</div>
+                         </div>
+                         <button onClick={() => handleDeleteNote(note.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(var(--danger))', padding: '0.25rem' }}>
+                           <Trash2 size={14} />
+                         </button>
+                       </div>
+                     ))}
+                   </div>
                  )}
                </div>
             )}
             
-            <div style={{ marginTop: '2rem', textAlign: 'right' }}>
+            <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
               <button onClick={() => setHistoryModal(false)} className="btn btn-primary">Cerrar</button>
             </div>
           </div>

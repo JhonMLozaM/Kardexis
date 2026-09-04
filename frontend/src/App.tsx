@@ -1,6 +1,6 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
+import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -10,11 +10,13 @@ import Staff from './pages/Staff';
 import Profile from './pages/Profile';
 import Customers from './pages/Customers';
 import BusinessSettings from './pages/BusinessSettings';
+import CashClose from './pages/CashClose';
+import CreditNotes from './pages/CreditNotes';
 
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const token = useAuthStore((state) => state.token);
   if (!token) return <Navigate to="/login" replace />;
-  return children;
+  return <Layout>{children}</Layout>;
 }
 
 function App() {
@@ -22,70 +24,16 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/productos" 
-          element={
-            <ProtectedRoute>
-              <Products />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/pos" 
-          element={
-            <ProtectedRoute>
-              <POS />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/reportes" 
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/staff" 
-          element={
-            <ProtectedRoute>
-              <Staff />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/perfil" 
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/clientes" 
-          element={
-            <ProtectedRoute>
-              <Customers />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/empresa" 
-          element={
-            <ProtectedRoute>
-              <BusinessSettings />
-            </ProtectedRoute>
-          } 
-        />
+        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/productos" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+        <Route path="/pos" element={<ProtectedRoute><POS /></ProtectedRoute>} />
+        <Route path="/reportes" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/staff" element={<ProtectedRoute><Staff /></ProtectedRoute>} />
+        <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/clientes" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+        <Route path="/empresa" element={<ProtectedRoute><BusinessSettings /></ProtectedRoute>} />
+        <Route path="/cierre-caja" element={<ProtectedRoute><CashClose /></ProtectedRoute>} />
+        <Route path="/notas-credito" element={<ProtectedRoute><CreditNotes /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

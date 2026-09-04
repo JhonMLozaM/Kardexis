@@ -10,8 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/network": "^8.0.1",
     "axios": "^1.14.0",
     "clsx": "^2.1.1",
+    "dexie": "^4.4.5",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.7.0",
     "react": "^19.2.4",
@@ -20,6 +25,7 @@
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
+    "uuid": "^14.0.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -27,6 +33,7 @@
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",

@@ -1,6 +1,7 @@
-from datetime import datetime
-from pydantic import BaseModel, Field
 from typing import Optional
+
+from pydantic import BaseModel, Field
+
 
 class AttendanceBase(BaseModel):
     user_id: str = Field(..., title="ID del Empleado")
@@ -17,5 +18,11 @@ class AttendanceUpdate(BaseModel):
     check_out: str = Field(..., title="Hora de Salida")
     notes: Optional[str] = Field(None, title="Notas finales")
 
-class AttendanceInDB(AttendanceBase):
-    id: str = Field(..., alias="_id")
+class AttendanceInDB(BaseModel):
+    id: str
+    user_id: str
+    date: Optional[str] = None
+    check_in: Optional[str] = None
+    check_out: Optional[str] = None
+    status: Optional[str] = "active"
+    notes: Optional[str] = None

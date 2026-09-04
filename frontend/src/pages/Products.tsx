@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Package, Plus, X, Search, Filter, Loader2, ArrowLeft, Beaker, CheckCircle, Tag, Printer, Camera } from 'lucide-react';
+import { Package, Plus, X, Search, Filter, Loader2, Beaker, CheckCircle, Tag, Printer, Camera } from 'lucide-react';
 import Barcode from 'react-barcode';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import ScannerModal from '../components/ScannerModal';
 
 export default function Products() {
-  const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -203,12 +201,12 @@ export default function Products() {
     if (!product.barcode) {
       setLabelLoading(true);
       try {
-        const resp = await api.post(`/products/${product._id}/generate-barcode`);
+        const resp = await api.post(`/products/${product.id}/generate-barcode`);
         const updatedBarcode = resp.data.barcode;
         
         // Actualizar el estado local para que se vea de una vez
         setProducts(prev => prev.map(p => 
-          p._id === product._id ? { ...p, barcode: updatedBarcode } : p
+          p.id === product.id ? { ...p, barcode: updatedBarcode } : p
         ));
         setSelectedProduct({ ...product, barcode: updatedBarcode });
       } catch (err) {
@@ -237,7 +235,7 @@ export default function Products() {
 
     try {
       const payload = {
-        product_id: selectedProduct._id,
+        product_id: selectedProduct.id,
         transaction_type: "IN",
         quantity: parseFloat(entryData.quantity),
         notes: entryData.notes
@@ -263,29 +261,20 @@ export default function Products() {
   };
 
   return (
-    <div className="app-container anim-fade-in">
-      <header className="glass header-responsive" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: window.innerWidth < 600 ? '100%' : 'auto', justifyContent: window.innerWidth < 600 ? 'space-between' : 'flex-start' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Package size={28} color="hsl(var(--primary))" />
-            <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Inventario</h1>
-          </div>
-          <button onClick={() => navigate('/')} className="btn glass hover-lift" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid hsl(var(--primary-light))', color: 'hsl(var(--primary))' }}>
-            <ArrowLeft size={18} /> <span>Menú</span>
+    <div className="anim-fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Package size={22} color="hsl(var(--primary))" /> Inventario
+        </h2>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={() => setShowFractionModal(true)} className="btn hover-lift" style={{ background: 'hsl(var(--secondary) / 0.1)', color: 'hsl(var(--secondary))', border: '1px solid hsl(var(--secondary) / 0.3)' }}>
+            <Beaker size={16} /> Fraccionar
+          </button>
+          <button onClick={openModal} className="btn btn-primary hover-lift">
+            <Plus size={16} /> Nuevo Producto
           </button>
         </div>
-        
-        <div style={{ display: 'flex', gap: '1rem', width: window.innerWidth < 600 ? '100%' : 'auto', justifyContent: window.innerWidth < 600 ? 'space-between' : 'flex-end' }}>
-          <button onClick={() => setShowFractionModal(true)} className="btn hover-lift" style={{ flex: '1 1 auto', background: 'hsl(var(--secondary) / 0.1)', color: 'hsl(var(--secondary))', border: '1px solid hsl(var(--secondary) / 0.3)' }}>
-            <Beaker size={18} /> Fraccionar
-          </button>
-          <button onClick={openModal} className="btn btn-primary hover-lift" style={{ flex: '1 1 auto' }}>
-            <Plus size={18} /> Nuevo Producto
-          </button>
-        </div>
-      </header>
-
-      <main>
+      </div>
         <div className="glass" style={{ minHeight: '60vh', padding: '1.5rem' }}>
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: '1 1 300px' }}>
@@ -335,7 +324,7 @@ export default function Products() {
                 </thead>
                 <tbody>
                   {filteredProducts.map(p => (
-                    <tr key={p._id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="hover-lift">
+                    <tr key={p.id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="hover-lift">
                       <td style={{ padding: '1rem', fontFamily: 'monospace' }}>{p.barcode || <span style={{ fontStyle: 'italic', color: 'hsl(var(--text-secondary))', fontSize: '0.8rem' }}>Sin código</span>}</td>
                       <td style={{ padding: '1rem', fontWeight: 500 }}>{p.name}</td>
                       <td style={{ padding: '1rem' }}><span style={{ background: 'hsl(var(--primary-light))', color: 'hsl(var(--primary))', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase'}}>{p.unit_of_measure}</span></td>
@@ -373,7 +362,6 @@ export default function Products() {
             </div>
           )}
         </div>
-      </main>
 
       {/* Modal Glassmorphism form */}
       {showModal && (
@@ -470,7 +458,7 @@ export default function Products() {
                     <select required name="parent_product_id" value={formData.parent_product_id} onChange={handleInputChange} style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--border-radius-sm)', background: 'var(--bg-color)', border: '1px solid var(--glass-border)' }}>
                       <option value="">Selecciona un producto...</option>
                       {parentProducts.map(p => (
-                        <option key={p._id} value={p._id}>{p.name} ({p.unit_of_measure}) - Stock: {p.stock}</option>
+                        <option key={p.id} value={p.id}>{p.name} ({p.unit_of_measure}) - Stock: {p.stock}</option>
                       ))}
                     </select>
                   </div>
@@ -538,7 +526,7 @@ export default function Products() {
                   >
                     <option value="">Selecciona qué producto fraccionado deseas obtener...</option>
                     {childProducts.map(p => (
-                      <option key={p._id} value={p._id}>{p.name} - (Factor: {p.conversion_factor})</option>
+                      <option key={p.id} value={p.id}>{p.name} - (Factor: {p.conversion_factor})</option>
                     ))}
                   </select>
                 </div>

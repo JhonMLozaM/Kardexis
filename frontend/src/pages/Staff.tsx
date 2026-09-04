@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, Edit2, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Clock, Plus, Edit2 } from 'lucide-react';
 import { api } from '../services/api';
 
 const DAYS = [
@@ -19,10 +18,9 @@ const PRESETS = [
 ];
 
 export default function Staff() {
-  const navigate = useNavigate();
   const [employees, setEmployees] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'manage' | 'attendance'>('manage');
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
@@ -36,6 +34,7 @@ export default function Staff() {
     phone: '',
     email: '',
     role: 'EMPLOYEE',
+    permissions: '',
     schedule: {
       monday: { enabled: true, start: '08:00', end: '14:00' },
       tuesday: { enabled: true, start: '08:00', end: '14:00' },
@@ -102,7 +101,7 @@ export default function Staff() {
     e.preventDefault();
     try {
       if (editingEmployee) {
-        await api.put(`/users/${editingEmployee._id}`, formData);
+        await api.put(`/users/${editingEmployee.id}`, formData);
       } else {
         await api.post('/users/registro', formData);
       }
@@ -114,14 +113,9 @@ export default function Staff() {
   };
 
   return (
-    <div className="app-container anim-fade-in" style={{ padding: '2rem' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => navigate('/')} className="btn glass hover-lift" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid hsl(var(--primary-light))', color: 'hsl(var(--primary))' }}>
-            <ArrowLeft size={18} /> <span>Menú</span>
-          </button>
-          <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 800 }}>Gestión de Personal</h1>
-        </div>
+    <div className="anim-fade-in">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>Gestión de Personal</h1>
         <div className="glass" style={{ display: 'flex', padding: '0.25rem', borderRadius: 'var(--border-radius-sm)' }}>
           <button 
             className={`btn ${activeTab === 'manage' ? 'btn-primary' : ''}`} 
@@ -138,10 +132,10 @@ export default function Staff() {
             Asistencia
           </button>
         </div>
-      </header>
+      </div>
 
       {activeTab === 'manage' ? (
-        <main>
+        <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
             <button onClick={() => { setEditingEmployee(null); setShowModal(true); }} className="btn btn-primary hover-lift" style={{ display: 'flex', gap: '0.5rem' }}>
               <Plus size={18} /> Registrar Nuevo Empleado
@@ -150,7 +144,7 @@ export default function Staff() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
             {employees.map(emp => (
-              <div key={emp._id} className="glass hover-lift" style={{ padding: '1.5rem' }}>
+              <div key={emp.id} className="glass hover-lift" style={{ padding: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', gap: '1rem' }}>
                     <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'hsl(var(--primary-light))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--primary))', fontWeight: 800, fontSize: '1.2rem' }}>
@@ -159,6 +153,9 @@ export default function Staff() {
                     <div>
                       <h3 style={{ margin: 0 }}>{emp.full_name}</h3>
                       <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.875rem' }}>@{emp.username} | DNI: {emp.dni}</p>
+                      <p style={{ fontSize: '0.75rem', color: emp.role === 'ADMIN' ? 'hsl(var(--danger))' : emp.role === 'MANAGER' ? 'hsl(var(--warning))' : 'hsl(var(--primary))' }}>
+                        {emp.role === 'ADMIN' ? 'Administrador' : emp.role === 'MANAGER' ? 'Gerente' : 'Empleado'}
+                      </p>
                     </div>
                   </div>
                   <button onClick={() => { 
@@ -188,7 +185,7 @@ export default function Staff() {
               </div>
             ))}
           </div>
-        </main>
+        </div>
       ) : (
         <div className="glass" style={{ padding: '2rem' }}>
            <h3 style={{ marginBottom: '1.5rem' }}>Historial de Asistencia Reciente</h3>
@@ -259,6 +256,21 @@ export default function Staff() {
                 <div className="form-group">
                   <label>Correo Electrónico</label>
                   <input className="glass-input" type="email" placeholder="empleado@ejemplo.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label>Rol</label>
+                  <select className="glass-input" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
+                    <option value="EMPLOYEE">Empleado</option>
+                    <option value="MANAGER">Gerente</option>
+                    <option value="ADMIN">Administrador</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label>Permisos (separados por coma)</label>
+                  <input className="glass-input" placeholder="sales,products,customers,reports,attendance,business,staff" value={formData.permissions} onChange={(e) => setFormData({...formData, permissions: e.target.value})} />
+                  <small style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.75rem' }}>
+                    Disponibles: sales, products, customers, reports, attendance, business, staff
+                  </small>
                 </div>
               </div>
 

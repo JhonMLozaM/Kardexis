@@ -360,3 +360,10 @@ input:focus, select:focus {
     display: none !important;
   }
 }
+
+/* Layout responsive */
+@media (max-width: 768px) {
+  .grid-dashboard {
+    grid-template-columns: 1fr !important;
+  }
+}

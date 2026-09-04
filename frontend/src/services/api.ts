@@ -1,16 +1,24 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
+import { Capacitor } from '@capacitor/core';
 
-// URL Base dinámica: Reconocerá si entraste a localhost (tu PC) 
-// o si entraste desde la IP de tu red WiFi (tu Móvil/PC secundaria)
+// Detectar si estamos en Capacitor (movil) o en web
+const isNative = Capacitor.isNativePlatform();
+
+// En web: usa proxy de Vite (/api/v1)
+// En Capacitor: apunta directo al backend (IP de la PC)
+const BASE_URL = isNative
+  ? 'http://192.168.1.100:8000/api/v1'  // Cambiar por la IP de la PC con el backend
+  : '/api/v1';
+
 export const api = axios.create({
-  baseURL: `/api/v1`,
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptor para inyectar automáticamente el Token en peticiones
+// Interceptor para inyectar automaticamente el Token
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
@@ -19,7 +27,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Opcional: Interceptor de Respuestas (para desloguear si expira el token 401)
+// Auto-logout en 401
 api.interceptors.response.use(
   (response) => response,
   (error) => {

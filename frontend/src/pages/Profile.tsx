@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Smile, ArrowLeft, Save, Lock, Calendar, ShieldCheck, Camera, Loader2, Palette, Building2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Smile, Save, Lock, Calendar, ShieldCheck, Camera, Loader2, Palette, Building2, Link, Upload, X } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { api } from '../services/api';
 
@@ -20,6 +20,10 @@ export default function Profile() {
   const { user: authUser, setUser } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [photoMode, setPhotoMode] = useState<'url' | 'upload'>('url');
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     email: authUser?.email || '',
     phone: authUser?.phone || '',
@@ -52,7 +56,7 @@ export default function Profile() {
       setLoading(true);
       setSuccess(false);
       const resp = await api.put('/users/me', formData);
-      setUser(resp.data); // Actualizar store local
+      setUser(resp.data);
       setSuccess(true);
       setFormData(prev => ({ ...prev, password: '' }));
       setTimeout(() => setSuccess(false), 3000);
@@ -63,20 +67,66 @@ export default function Profile() {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("La imagen no debe superar 5MB");
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      alert("Solo se permiten imagenes JPG, PNG y WEBP");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  };
+
+  const handleAvatarUpload = async () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingAvatar(true);
+      const fd = new FormData();
+      fd.append('file', file);
+      const resp = await api.post('/users/me/avatar', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setUser(resp.data);
+      setFormData(prev => ({ ...prev, profile_picture_url: resp.data.profile_picture_url }));
+      setPreviewUrl('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err) {
+      alert("Error al subir la imagen");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleUrlSave = async () => {
+    try {
+      setLoading(true);
+      const resp = await api.put('/users/me', { profile_picture_url: formData.profile_picture_url });
+      setUser(resp.data);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      alert("Error al actualizar la foto");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentPhoto = previewUrl || formData.profile_picture_url || '';
+
   const currentHsl = COLOR_MAP[formData.theme_color] || COLOR_MAP["Azul"];
 
   return (
-    <div className="app-container anim-fade-in" style={{ 
-      padding: '2rem', 
-      background: `linear-gradient(135deg, hsl(${currentHsl} / 0.05) 0%, transparent 100%)`, 
+    <div className="anim-fade-in" style={{ 
+      backgroundImage: `linear-gradient(135deg, hsl(${currentHsl} / 0.05) 0%, transparent 100%)`, 
       minHeight: '100vh' 
     }}>
-      <header style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={() => navigate('/')} className="btn glass hover-lift" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: `hsl(${currentHsl})` }}>
-          <ArrowLeft size={18} /> Menú
-        </button>
-        <h1 style={{ margin: 0 }}>Preferencias de Usuario</h1>
-      </header>
+      <h1 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', fontWeight: 800 }}>Preferencias de Usuario</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', maxWidth: '1200px', margin: '0 auto' }} className="grid-responsive-profile">
         {/* Lado Izquierdo: Resumen y Foto */}
@@ -86,7 +136,7 @@ export default function Profile() {
                width: '120px', 
                height: '120px', 
                borderRadius: '50%', 
-               background: `hsl(${currentHsl})`, 
+                backgroundColor: currentPhoto ? 'transparent' : `hsl(${currentHsl})`, 
                margin: '0 auto 1.5rem',
                display: 'flex',
                alignItems: 'center',
@@ -98,8 +148,8 @@ export default function Profile() {
                boxShadow: 'var(--shadow-lg)',
                overflow: 'hidden'
              }}>
-               {formData.profile_picture_url ? (
-                 <img src={formData.profile_picture_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+               {currentPhoto ? (
+                 <img src={currentPhoto} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                ) : (
                  authUser?.full_name.charAt(0)
                )}
@@ -107,7 +157,7 @@ export default function Profile() {
              <h2 style={{ margin: 0 }}>{authUser?.full_name}</h2>
              <span style={{ 
                padding: '4px 12px', 
-               background: `hsl(${currentHsl} / 0.1)`, 
+                backgroundColor: `hsl(${currentHsl} / 0.1)`, 
                color: `hsl(${currentHsl})`, 
                borderRadius: '12px', 
                fontSize: '0.8rem',
@@ -134,7 +184,7 @@ export default function Profile() {
           </div>
 
           {authUser?.role === 'ADMIN' && (
-            <div className="glass anim-fade-in" style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed hsl(var(--primary) / 0.5)', background: 'hsl(var(--primary) / 0.02)' }}>
+            <div className="glass anim-fade-in" style={{ padding: '1.5rem', textAlign: 'center', border: '1px dashed hsl(var(--primary) / 0.5)', backgroundColor: 'hsl(var(--primary) / 0.02)' }}>
                <Building2 size={32} style={{ marginBottom: '1rem', color: 'hsl(var(--primary))' }} />
                <h4 style={{ margin: '0 0 0.5rem' }}>Gestión de Empresa</h4>
                <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-secondary))', marginBottom: '1.5rem' }}>
@@ -152,7 +202,7 @@ export default function Profile() {
         </aside>
 
         {/* Lado Derecho: Formulario de Edición */}
-        <main className="glass" style={{ padding: '2rem' }}>
+        <div className="glass" style={{ padding: '2rem' }}>
           <form onSubmit={handleSave}>
             <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                <Edit2Icon size={20} /> Información Personal
@@ -173,7 +223,7 @@ export default function Profile() {
                         width: '32px',
                         height: '32px',
                         borderRadius: '50%',
-                        background: `hsl(${hsl})`,
+                        backgroundColor: `hsl(${hsl})`,
                         border: formData.theme_color === name ? '2px solid white' : '2px solid transparent',
                         boxShadow: formData.theme_color === name ? '0 0 0 2px hsl(var(--primary))' : 'none',
                         cursor: 'pointer',
@@ -216,14 +266,92 @@ export default function Profile() {
                   <option value="Otro">Otro</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Camera size={16} /> URL Foto de Perfil</label>
-                <input 
-                  className="glass-input" 
-                  value={formData.profile_picture_url} 
-                  onChange={(e) => setFormData({...formData, profile_picture_url: e.target.value})}
-                  placeholder="https://..."
-                />
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}><Camera size={16} /> Foto de Perfil</label>
+                
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoMode('url')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.4rem 0.8rem', borderRadius: 'var(--border-radius-sm)',
+                      border: '1px solid', borderColor: photoMode === 'url' ? 'hsl(var(--primary))' : 'var(--glass-border)',
+                      backgroundColor: photoMode === 'url' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                      color: photoMode === 'url' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+                      cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500
+                    }}
+                  >
+                    <Link size={14} /> Desde URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoMode('upload')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.4rem 0.8rem', borderRadius: 'var(--border-radius-sm)',
+                      border: '1px solid', borderColor: photoMode === 'upload' ? 'hsl(var(--primary))' : 'var(--glass-border)',
+                      backgroundColor: photoMode === 'upload' ? 'hsl(var(--primary) / 0.1)' : 'transparent',
+                      color: photoMode === 'upload' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+                      cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500
+                    }}
+                  >
+                    <Upload size={14} /> Subir Archivo
+                  </button>
+                </div>
+
+                {photoMode === 'url' ? (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input 
+                      className="glass-input" 
+                      style={{ flex: 1 }}
+                      value={formData.profile_picture_url} 
+                      onChange={(e) => setFormData({...formData, profile_picture_url: e.target.value})}
+                      placeholder="https://ejemplo.com/foto.jpg"
+                    />
+                    <button type="button" onClick={handleUrlSave} disabled={loading} className="btn btn-primary" style={{ padding: '0.6rem 1rem', whiteSpace: 'nowrap' }}>
+                      {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileSelect}
+                      style={{ display: 'none' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn glass"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'hsl(var(--primary))' }}
+                      >
+                        <Upload size={16} /> Seleccionar imagen
+                      </button>
+                      {previewUrl && (
+                        <button type="button" onClick={handleAvatarUpload} disabled={uploadingAvatar} className="btn btn-primary" style={{ display: 'flex', gap: '0.4rem' }}>
+                          {uploadingAvatar ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar
+                        </button>
+                      )}
+                    </div>
+                    {previewUrl && (
+                      <div style={{ marginTop: '0.75rem', position: 'relative', display: 'inline-block' }}>
+                        <img src={previewUrl} alt="Preview" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--glass-border)' }} />
+                        <button
+                          type="button"
+                          onClick={() => { setPreviewUrl(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                          style={{ position: 'absolute', top: -4, right: -4, width: 20, height: 20, borderRadius: '50%', backgroundColor: 'hsl(var(--danger))', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={16} /> Fecha de Nacimiento</label>
@@ -267,7 +395,7 @@ export default function Profile() {
               </button>
             </div>
           </form>
-        </main>
+        </div>
       </div>
 
       <style>{`
